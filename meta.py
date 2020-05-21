@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup
 
 # scrape params
 URL = 'https://habr.com/ru/hub/python/top/'
-ARTICLE_COUNT = 10
+ARTICLE_COUNT = 1
 
 # trello params
 API_KEY = 'fde2a8d0e518d164ee95d6aaccba06b8'
@@ -63,7 +63,7 @@ def parse_response(response, count):
         post = BeautifulSoup(
             get_habr_request(link), features='html.parser'
         ).find('div', {'class': 'post__text'})
-        symbols = len(post.text)
+        symbols = len(post.text) if post else 0
         collect_articles['{} {}'.format(name, symbols)] = link
     return collect_articles
 
@@ -73,7 +73,7 @@ def request_trello(url):
     response = requests.get(
         url, params={
             'key': API_KEY, 'token': OAUTH_TOKEN, 'response_type': 'token'
-        }
+        }, timeout=30
     )
     check_response_errors(response)
     return response.json()
@@ -115,7 +115,7 @@ def create_new_card(list_id, card_name, desc):
             'name': card_name,
             'idList': list_id,
             'desc': desc
-        })
+        }, timeout=30)
     check_response_errors(response)
 
 
@@ -132,7 +132,11 @@ def scrape():
     """The main function to start scraping and creating tickets"""
     response = get_habr_request(URL)
     articles_info = parse_response(response, ARTICLE_COUNT)
-    create_trello_tickets(articles_info)
+    if articles_info:
+        create_trello_tickets(articles_info)
+    else:
+        print('Something wrong with Habr, I dont see any posts there')
+        raise DidntFindRequestElement
 
 
 if __name__ == '__main__':
